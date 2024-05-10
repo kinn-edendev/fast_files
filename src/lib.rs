@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Write};
 
 pub struct State {
     menu: String,
@@ -11,42 +11,46 @@ pub fn start_splash() {
 }
 
 fn poll_commands(state: &mut State) -> () { // poll_command() should return type fn()
-    // check std::io for single character inputs
-
+    // initialize text input variables
     let mut text_entry = String::new();
     let mut commands: Vec<String> = Vec::new();
 
+    // preparing IO
     print!("> ");
+    io::stdout().flush().expect("Failed to flush");
     io::stdin()
         .read_line(&mut text_entry)
         .expect("Failed to read line");   
 
+    // tokenizing commands
     for word in text_entry.split_whitespace() {
         commands.push(String::from(word));
     }        
 
+    // making sure first command is only a single character, else try polling again
     if commands[0].len() != 1 {
         println!("Invalid command at index 0, character length should be 1");
         poll_commands(state);
     }
 
+    // creating list of valid arguments depending on the menu state
     let valid_args = &state.commands;
-    
-    // println!("{:?}", valid_args);
 
-    let command_level1 = match &commands[0] {
+    // command list: level1 checks if the command is available in the menu state, level2 executes the command.
+    let _command_level1 = match &commands[0] {
         x if valid_args.contains(x) => {
-            let command_level2 = match commands[0].as_str() {
+            let _command_level2 = match commands[0].as_str() {
                 "l" => return state.directories(),
-                "o" => return state.directories(), // change fucntionality when implimented
-                "n" => return state.directories(), // change fucntionality when implimented
-                "r" => return state.directories(), // change fucntionality when implimented
-                "d" => return state.directories(), // change fucntionality when implimented
-                "q" => return state.directories(),
-                &_ => ()
+                "o" => return state.directories(), // change functionality when implimented
+                "n" => return state.directories(), // change functionality when implimented
+                "r" => return state.main_menu(),
+                "d" => return state.directories(), // change functionality when implimented
+                "R" => return state.directories(), // change functionality when impliemnted
+                "q" => std::process::exit(0),
+                &_ => poll_commands(state),
             };
         },
-        &_ => ()
+        &_ => poll_commands(state), 
     };
     // ToDo: Check to see if second command which should be a directory exists in the directory storage file.
 
@@ -74,8 +78,8 @@ impl State {
     fn update_commands(&mut self) {
         match self.menu.as_str() {
             "MainMenu" => {
-                self.comment = String::from("[l] - List saved directories\n[o] - Open file\n[n] - New Directory\n[r] - Refresh saved directories\n[d] - Default opening process\n[q] - Quit\n\n");
-                self.commands = Vec::from(["l".to_string(), "o".to_string(), "n".to_string(), "r".to_string(), "d".to_string(), "q".to_string()]);
+                self.comment = String::from("[l] - List saved directories\n[o] - Open file\n[n] - New Directory\n[R] - Refresh saved directories\n[d] - Default opening process\n[q] - Quit\n\n");
+                self.commands = Vec::from(["l".to_string(), "o".to_string(), "n".to_string(), "R".to_string(), "d".to_string(), "q".to_string()]);
             },
             "Directories" => {
                 self.comment = String::from("[#] - Open file number\n[s] - Change sort (current: last modified)\n[d] - Delete directory\n[r] - Return to main menu\n[q] - Quit\n\n");
@@ -95,6 +99,7 @@ impl State {
     // Changes State to main menu
     pub fn main_menu(&mut self) {
         self.update("MainMenu");
+        std::process::Command::new("clear").status().unwrap();
         print!("{}", self.print_commands());
         poll_commands(self);
     }
@@ -102,6 +107,7 @@ impl State {
     // Changes State to directories
     pub fn directories(&mut self) {
         self.update("Directories");
+        std::process::Command::new("clear").status().unwrap();
         print!("{}", self.print_commands());
         poll_commands(self);
     }

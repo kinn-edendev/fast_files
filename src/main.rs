@@ -5,5 +5,4 @@ fn main() {
 
     start_splash();
     state.main_menu();
-    state.directories();
 }

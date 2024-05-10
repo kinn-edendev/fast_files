@@ -15,10 +15,15 @@ Features include:
 Fast Files - File directory storage UI for fast access and sorting
 
 \[l\] - List saved directories
+
 \[o\] - Open file
+
 \[n\] - New Directory
-\[r\] - Refresh saved directories
+
+\[R\] - Refresh saved directories
+
 \[d\] - Default opening process
+
 \[q\] - Quit
 
 \> l
@@ -48,7 +53,7 @@ Select Action
 \[l\] - List saved directories
 \[o\] - Open file
 \[n\] - New Directory
-\[r\] - Refresh saved directories
+\[R\] - Refresh saved directories
 \[d\] - Default opening process
 \[q\] - Quit
 
@@ -189,7 +194,7 @@ Select Action
 \[l\] - List saved directories
 \[o\] - Open File
 \[n\] - New Directory
-\[r\] - Refresh saved directories
+\[R\] - Refresh saved directories
 \[d\] - Default opening process
 \[q\] - Quit
 
@@ -205,7 +210,7 @@ Select Action
 \[l\] - List saved directories
 \[o\] - Open File
 \[n\] - New Directory
-\[r\] - Refresh saved directories
+\[R\] - Refresh saved directories
 \[d\] - Default opening process
 \[q\] - Quit
 
@@ -222,7 +227,7 @@ Select Action
 \[l\] - List saved directories
 \[o\] - Open File
 \[n\] - New Directory
-\[r\] - Refresh saved directories
+\[R\] - Refresh saved directories
 \[d\] - Default opening process
 \[q\] - Quit
 
@@ -234,7 +239,7 @@ Select Action
 \[l\] - List saved directories
 \[o\] - Open File
 \[n\] - New Directory
-\[r\] - Refresh saved directories
+\[R\] - Refresh saved directories
 \[p\] - Default opening process
 \[q\] - Quit
 
