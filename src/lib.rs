@@ -1,9 +1,12 @@
 use std::io::{self, Write};
+use std::collections::HashMap;
 
 pub struct State {
     menu: String,
     commands: Vec<String>,
     comment: String,
+    directories: HashMap<String, String>,
+    launch_command: HashMap<String, String>,
 }
 
 pub fn start_splash() {
@@ -41,11 +44,11 @@ fn poll_commands(state: &mut State) -> () { // poll_command() should return type
         x if valid_args.contains(x) => {
             let _command_level2 = match commands[0].as_str() {
                 "l" => return state.directories(),
-                "o" => return state.directories(), // change functionality when implimented
-                "n" => return state.directories(), // change functionality when implimented
+                "o" => return state.open_directory(),
+                "n" => return state.new_directory(),
                 "r" => return state.main_menu(),
-                "d" => return state.directories(), // change functionality when implimented
-                "R" => return state.directories(), // change functionality when impliemnted
+                "d" => return state.set_default_opening_process(),
+                "R" => return state.refresh_list(),
                 "q" => std::process::exit(0),
                 &_ => poll_commands(state),
             };
@@ -55,6 +58,7 @@ fn poll_commands(state: &mut State) -> () { // poll_command() should return type
     // ToDo: Check to see if second command which should be a directory exists in the directory storage file.
 
 }
+
 impl State {
     
     // On program startup, create a new state which dictates what menu and options are displayed
@@ -63,6 +67,8 @@ impl State {
             menu: String::new(),
             commands: Vec::new(),
             comment: String::new(),
+            directories: HashMap::new(),
+            launch_command: HashMap::new(),
         }
     }
 
@@ -94,12 +100,44 @@ impl State {
         &self.comment
     }
 
+    // adds a new directory and endpoint to the hashmap of status.directories
+    fn new_directory(&mut self) {
+        // initialize text input variables
+        let mut text_entry = String::new();
+        let mut commands: Vec<String> = Vec::new();
+
+        // preparing IO
+        print!("Please enter a new filepath...\n> ");
+        io::stdout().flush().expect("Failed to flush");
+        io::stdin()
+            .read_line(&mut text_entry)
+            .expect("Failed to read line");
+
+        // tokenizing commands
+        for word in text_entry.split_whitespace() {
+            commands.push(String::from(word));
+        }
+
+        for directory in commands.iter() {
+            println!("{}", directory);
+        }
+
+    }
+
+    fn open_directory(&mut self) {}
+
+    fn set_default_opening_process(&mut self) {}
+
+    fn refresh_list(&mut self) {}
+
+
     // State change functions
     //
     // Changes State to main menu
     pub fn main_menu(&mut self) {
         self.update("MainMenu");
         std::process::Command::new("clear").status().unwrap();
+        start_splash();
         print!("{}", self.print_commands());
         poll_commands(self);
     }
@@ -111,6 +149,7 @@ impl State {
         print!("{}", self.print_commands());
         poll_commands(self);
     }
+
 }
 
 #[cfg(test)]
