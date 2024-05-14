@@ -1,5 +1,6 @@
 use std::io::{self, Write};
 use std::collections::HashMap;
+use regex::Regex;
 
 pub struct State {
     menu: String,
@@ -118,8 +119,27 @@ impl State {
             commands.push(String::from(word));
         }
 
+
+        
+        let re_endpoint = Regex::new(r"(?<endpoint>[[:word:]]+\.[[:word:]]+)").unwrap();
+        let re_ext = Regex::new(r"(?<ext>\.[[:word:]]+)").unwrap();
         for directory in commands.iter() {
-            println!("{}", directory);
+            let cap = re_endpoint.captures(directory).and_then(|cap| {
+                cap.name("endpoint").map(|endpoint| endpoint.as_str())
+            });
+            let endpoint = match cap {
+                Some(endp) => endp,
+                None => "",
+            };
+            let cap = re_ext.captures(directory).and_then(|cap| {
+                cap.name("ext").map(|ext| ext.as_str())
+            });
+            let extension = match cap {
+                Some(ex) => ex,
+                None => "",
+            };
+            
+            println!("directory is {}, endpoint is {}, extension is {}", directory, endpoint, extension);
         }
 
     }
