@@ -1,13 +1,14 @@
 use std::io::{self, Write};
 use std::collections::HashMap;
 use regex::Regex;
+use std::{thread, time};
 
 pub struct State {
     menu: String,
     commands: Vec<String>,
     comment: String,
-    directories: HashMap<String, String>,
-    launch_command: HashMap<String, String>,
+    directories: HashMap<String, String>, // saved in order of (filepath, endpoint)
+    launch_command: HashMap<String, String>, // saved in order of (command, extension)
 }
 
 pub fn start_splash() {
@@ -85,11 +86,11 @@ impl State {
     fn update_commands(&mut self) {
         match self.menu.as_str() {
             "MainMenu" => {
-                self.comment = String::from("[l] - List saved directories\n[o] - Open file\n[n] - New Directory\n[R] - Refresh saved directories\n[d] - Default opening process\n[q] - Quit\n\n");
+                self.comment = String::from("Select Action\n[l] - List saved directories\n[o] - Open file\n[n] - New Directory\n[R] - Refresh saved directories\n[d] - Default opening process\n[q] - Quit\n\n");
                 self.commands = Vec::from(["l".to_string(), "o".to_string(), "n".to_string(), "R".to_string(), "d".to_string(), "q".to_string()]);
             },
             "Directories" => {
-                self.comment = String::from("[#] - Open file number\n[s] - Change sort (current: last modified)\n[d] - Delete directory\n[r] - Return to main menu\n[q] - Quit\n\n");
+                self.comment = String::from("Select Action\n[#] - Open file number\n[s] - Change sort (current: last modified)\n[d] - Delete directory\n[r] - Return to main menu\n[q] - Quit\n\n");
                 self.commands = vec!["s".to_string(), "d".to_string(), "r".to_string(), "q".to_string()];
             },
             &_ => ()
@@ -108,7 +109,7 @@ impl State {
         let mut commands: Vec<String> = Vec::new();
 
         // preparing IO
-        print!("Please enter a new filepath...\n> ");
+        print!("\nPlease enter a new filepath...\n> ");
         io::stdout().flush().expect("Failed to flush");
         io::stdin()
             .read_line(&mut text_entry)
@@ -119,11 +120,16 @@ impl State {
             commands.push(String::from(word));
         }
 
-
-        
+        // declaring regex for use in the for loop, documentation said its 'expensive' to declare
+        // so its only done once.       
         let re_endpoint = Regex::new(r"(?<endpoint>[[:word:]]+\.[[:word:]]+)").unwrap();
         let re_ext = Regex::new(r"(?<ext>\.[[:word:]]+)").unwrap();
+        
+        // this loop captures the endpoint and extension for every inputted directory, then adds
+        // them to their respective hashmaps in state.directories and state.launch_command
         for directory in commands.iter() {
+
+            // endpoints are captured and taken out of their Option() state.
             let cap = re_endpoint.captures(directory).and_then(|cap| {
                 cap.name("endpoint").map(|endpoint| endpoint.as_str())
             });
@@ -131,6 +137,8 @@ impl State {
                 Some(endp) => endp,
                 None => "",
             };
+
+            // extensions are captured and taken out of their Option() state
             let cap = re_ext.captures(directory).and_then(|cap| {
                 cap.name("ext").map(|ext| ext.as_str())
             });
@@ -139,9 +147,45 @@ impl State {
                 None => "",
             };
             
-            println!("directory is {}, endpoint is {}, extension is {}", directory, endpoint, extension);
+            // directory:endpoint key-value pairs are inserted to the hashmap
+            self.directories.insert(String::from(directory), String::from(endpoint));
+            println!("\n{} added and saved to directories...", endpoint);
+
+            // creating vector list of known (registered) extensions for checking later
+            let mut registered_extensions: Vec<&str> = Vec::new();
+
+            for (_process, reg_ext) in &self.launch_command {
+                registered_extensions.push(reg_ext);
+            }
+
+            // if the extension is not registered, register with a command and add to hashmap
+            if !registered_extensions.contains(&extension) {
+                println!("New filetype discovered, what process would you like to open '{}' files with?", extension);
+
+                // initialize text input variables
+                let mut text_entry = String::new();
+
+                // preparing IO
+                print!("> ");
+                io::stdout().flush().expect("Failed to flush");
+                io::stdin()
+                    .read_line(&mut text_entry)
+                    .expect("Failed to read line");
+
+                let text_entry = text_entry.trim_end();
+
+                println!("\n'{}' file will now be opened with '{}' by default, use 'd' from the main menu to change.", extension, text_entry);
+                self.launch_command.insert(String::from(text_entry), String::from(extension));
+
+            }
+
         }
 
+        // after waiting, return to main menu
+        thread::sleep(time::Duration::from_secs(2));
+        std::process::Command::new("clear").status().unwrap();
+        print!("{}", self.print_commands());
+        poll_commands(self);
     }
 
     fn open_directory(&mut self) {}
@@ -166,7 +210,17 @@ impl State {
     pub fn directories(&mut self) {
         self.update("Directories");
         std::process::Command::new("clear").status().unwrap();
-        print!("{}", self.print_commands());
+
+        // prints directories from state.directories hashmap
+        println!("Listing Saved Directories...");
+
+        let mut count: i32 = 1;
+        for (_filepath, endpoint) in &self.directories {
+            println!("{}. {}", count, endpoint);
+            count += 1;
+        }
+
+        print!("\n{}", self.print_commands());
         poll_commands(self);
     }
 
