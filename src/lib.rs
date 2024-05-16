@@ -1,14 +1,16 @@
-use std::io::{self, Write};
+use std::io::{self, Write, BufRead};
 use std::collections::HashMap;
 use regex::Regex;
 use std::{thread, time};
+use std::fs::{OpenOptions, File};
+use std::path::Path;
 
 pub struct State {
     menu: String,
     commands: Vec<String>,
     comment: String,
     directories: HashMap<String, String>, // saved in order of (filepath, endpoint)
-    launch_command: HashMap<String, String>, // saved in order of (command, extension)
+    launch_command: HashMap<String, String>, // saved in order of (extension, command)
 }
 
 pub fn start_splash() {
@@ -72,6 +74,32 @@ impl State {
             directories: HashMap::new(),
             launch_command: HashMap::new(),
         }
+    }
+
+    // On a blank state, populate directories and launch_command hashmaps from saved file
+    pub fn build(&mut self, directories: String, launchcommands: String) {
+        // populate from directories file into state.directories
+        if let Ok(lines) = read_lines(directories) {
+            for line in lines.flatten() {
+                let mut kv_pair: Vec<String> = Vec::new();
+                for keyvalue in line.split_whitespace() {
+                    kv_pair.push(keyvalue.to_string());
+                }
+                self.directories.insert(String::from(&kv_pair[0]), String::from(&kv_pair[1]));
+            }
+        }
+        // populate from launchcommands file into state.launch_command
+        if let Ok(lines) = read_lines(launchcommands) {
+            for line in lines.flatten() {
+                let mut kv_pair: Vec<String> = Vec::new();
+                for keyvalue in line.split_whitespace() {
+                    kv_pair.push(keyvalue.to_string());
+                }
+                self.launch_command.insert(String::from(&kv_pair[0]), String::from(&kv_pair[1]));
+            }
+        }
+
+
     }
 
     // Update state with corresponding options: main_menu(), directories().
@@ -154,7 +182,7 @@ impl State {
             // creating vector list of known (registered) extensions for checking later
             let mut registered_extensions: Vec<&str> = Vec::new();
 
-            for (_process, reg_ext) in &self.launch_command {
+            for (reg_ext, _process) in &self.launch_command {
                 registered_extensions.push(reg_ext);
             }
 
@@ -163,22 +191,46 @@ impl State {
                 println!("New filetype discovered, what process would you like to open '{}' files with?", extension);
 
                 // initialize text input variables
-                let mut text_entry = String::new();
+                let mut launch_command = String::new();
 
                 // preparing IO
                 print!("> ");
                 io::stdout().flush().expect("Failed to flush");
                 io::stdin()
-                    .read_line(&mut text_entry)
+                    .read_line(&mut launch_command)
                     .expect("Failed to read line");
 
-                let text_entry = text_entry.trim_end();
+                let launch_command = launch_command.trim_end();
 
-                println!("\n'{}' file will now be opened with '{}' by default, use 'd' from the main menu to change.", extension, text_entry);
-                self.launch_command.insert(String::from(text_entry), String::from(extension));
+                println!("\n'{}' file will now be opened with '{}' by default, use 'd' from the main menu to change.", extension, launch_command);
+                self.launch_command.insert(String::from(extension), String::from(launch_command));
 
             }
 
+        }
+
+        // write changes to file "ff_directories.txt" which allows for cross-instance usage
+        let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open("ff_directories.txt")
+                .expect("Unable to open file");
+        
+        for (directory, endpoint) in &self.directories { // issue: currently rewrites entire storage when saving as a redundancy against overwrites
+            let data = format!("{directory} {endpoint}\n");
+            file.write(data.as_bytes()).expect("Unable to write to directories");
+        }
+
+        // write changes to file "ff_launchcommands.txt" which allows for cross-instance usage
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open("ff_launchcommands.txt")
+            .expect("Unable to open file");
+
+        for (extension, commands) in &self.launch_command { // same issue
+            let data = format!("{extension} {commands}\n");
+            file.write(data.as_bytes()).expect("Unable to write to launchcommands");
         }
 
         // after waiting, return to main menu
@@ -190,9 +242,13 @@ impl State {
 
     fn open_directory(&mut self) {}
 
-    fn set_default_opening_process(&mut self) {}
+    fn set_default_opening_process(&mut self) {
+        // reuse code from new_directory, swap out directories for launch_command
+    }
 
-    fn refresh_list(&mut self) {}
+    fn refresh_list(&mut self) {
+        // maybe call build() and then reuse code from new_directory()
+    }
 
 
     // State change functions
@@ -224,6 +280,12 @@ impl State {
         poll_commands(self);
     }
 
+}
+
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where P: AsRef<Path>, {
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
 }
 
 #[cfg(test)]
