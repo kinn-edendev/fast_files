@@ -134,7 +134,7 @@ Listing Saved Directories\.\.\.
 
 \> d
 
-Select directory number or file name to delete...
+Select directory number or file name to delete\.\.\.
 
 \> to\_do\.txt
 

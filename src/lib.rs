@@ -2,7 +2,7 @@ use std::io::{self, Write, BufRead};
 use std::collections::HashMap;
 use regex::Regex;
 use std::{thread, time};
-use std::fs::{OpenOptions, File};
+use std::fs::{self, OpenOptions, File};
 use std::path::Path;
 
 pub struct State {
@@ -50,9 +50,16 @@ fn poll_commands(state: &mut State) -> () { // poll_command() should return type
                 "l" => return state.directories(),
                 "o" => return state.open_directory(),
                 "n" => return state.new_directory(),
-                "r" => return state.main_menu(),
-                "d" => return state.set_default_opening_process(),
-                "R" => return state.refresh_list(),
+                "r" => if &state.menu == "MainMenu" {
+                    return state.refresh_list()
+                } else if &state.menu == "Directories" {
+                    return state.main_menu()
+                },
+                "d" => if &state.menu == "MainMenu" {
+                    return state.set_default_opening_process()
+                } else if &state.menu == "Directories" {
+                    return state.delete_directory()
+                },
                 "q" => std::process::exit(0),
                 &_ => poll_commands(state),
             };
@@ -114,8 +121,8 @@ impl State {
     fn update_commands(&mut self) {
         match self.menu.as_str() {
             "MainMenu" => {
-                self.comment = String::from("Select Action\n[l] - List saved directories\n[o] - Open file\n[n] - New Directory\n[R] - Refresh saved directories\n[d] - Default opening process\n[q] - Quit\n\n");
-                self.commands = Vec::from(["l".to_string(), "o".to_string(), "n".to_string(), "R".to_string(), "d".to_string(), "q".to_string()]);
+                self.comment = String::from("Select Action\n[l] - List saved directories\n[o] - Open file\n[n] - New Directory\n[r] - Refresh saved directories\n[d] - Default opening process\n[q] - Quit\n\n");
+                self.commands = Vec::from(["l".to_string(), "o".to_string(), "n".to_string(), "r".to_string(), "d".to_string(), "q".to_string()]);
             },
             "Directories" => {
                 self.comment = String::from("Select Action\n[#] - Open file number\n[s] - Change sort (current: last modified)\n[d] - Delete directory\n[r] - Return to main menu\n[q] - Quit\n\n");
@@ -210,6 +217,7 @@ impl State {
         }
 
         // write changes to file "ff_directories.txt" which allows for cross-instance usage
+        fs::remove_file("ff_directories.txt").unwrap();
         let mut file = OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -238,6 +246,61 @@ impl State {
         std::process::Command::new("clear").status().unwrap();
         print!("{}", self.print_commands());
         poll_commands(self);
+    }
+
+    fn delete_directory(&mut self) {
+        
+        // initialize text input variables
+        let mut text_entry = String::new();
+        let mut commands: Vec<String> = Vec::new();
+
+        // preparing IO
+        print!("\nSelect directory number or file name to delete...\n");
+        print!("> ");
+        io::stdout().flush().expect("Failed to flush");
+        io::stdin()
+            .read_line(&mut text_entry)
+            .expect("Failed to read line");
+
+
+        // tokenizing commands
+        for word in text_entry.split_whitespace() {
+            commands.push(String::from(word));
+        }
+
+        let mut tobe_deleted = String::new();
+
+        for command in commands.iter() {
+            for (key, value) in &self.directories {
+                if value == command {
+                    println!("\nDeleteing '{}' from registry... (fast_files does not truly delete files)", command);
+                    tobe_deleted = key.to_string();
+                    break;
+                } 
+            }
+            if tobe_deleted == "" {
+                println!("\nDirectory not found");
+            }
+            self.directories.remove(&tobe_deleted);
+        }
+
+        // write changes to file "ff_directories.txt" which allows for cross-instance usage
+        fs::remove_file("ff_directories.txt").unwrap();
+        let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open("ff_directories.txt")
+                .expect("Unable to open file");
+
+        for (directory, endpoint) in &self.directories { // issue: currently rewrites entire storage when saving as a redundancy against overwrites
+            let data = format!("{directory} {endpoint}\n");
+            file.write(data.as_bytes()).expect("Unable to write to directories");
+        }
+
+        // after waiting, return to directory listing
+        thread::sleep(time::Duration::from_secs(2));
+        std::process::Command::new("clear").status().unwrap();
+        self.directories();
     }
 
     fn open_directory(&mut self) {}
