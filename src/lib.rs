@@ -49,16 +49,22 @@ fn poll_commands(state: &mut State) -> () { // poll_command() should return type
             let _command_level2 = match commands[0].as_str() {
                 "l" => return state.directories(),
                 "o" => return state.open_directory(),
-                "n" => return state.new_directory(),
+                "n" => if &state.menu == "Directories" {
+                    return state.new_directory()
+                } else if &state.menu == "LaunchCommands" {
+                    return state.new_launchcommand() 
+                },
                 "r" => if &state.menu == "MainMenu" {
                     return state.refresh_list()
-                } else if &state.menu == "Directories" {
+                } else {
                     return state.main_menu()
                 },
                 "d" => if &state.menu == "MainMenu" {
-                    return state.set_default_opening_process()
+                    return state.launch_commands()
                 } else if &state.menu == "Directories" {
                     return state.delete_directory()
+                } else if &state.menu == "LaunchCommands" {
+                    return state.delete_launchcommand()
                 },
                 "q" => std::process::exit(0),
                 &_ => poll_commands(state),
@@ -106,7 +112,6 @@ impl State {
             }
         }
 
-
     }
 
     // Update state with corresponding options: main_menu(), directories().
@@ -121,12 +126,16 @@ impl State {
     fn update_commands(&mut self) {
         match self.menu.as_str() {
             "MainMenu" => {
-                self.comment = String::from("Select Action\n[l] - List saved directories\n[o] - Open file\n[n] - New Directory\n[r] - Refresh saved directories\n[d] - Default opening process\n[q] - Quit\n\n");
-                self.commands = Vec::from(["l".to_string(), "o".to_string(), "n".to_string(), "r".to_string(), "d".to_string(), "q".to_string()]);
+                self.comment = String::from("Select Action\n[l] - List saved directories\n[d] - List default opening process\n[r] - Refresh saved directories\n[q] - Quit\n\n");
+                self.commands = Vec::from(["l".to_string(), "d".to_string(), "r".to_string(), "q".to_string()]);
             },
             "Directories" => {
-                self.comment = String::from("Select Action\n[#] - Open file number\n[s] - Change sort (current: last modified)\n[d] - Delete directory\n[r] - Return to main menu\n[q] - Quit\n\n");
-                self.commands = vec!["s".to_string(), "d".to_string(), "r".to_string(), "q".to_string()];
+                self.comment = String::from("Select Action\n[#] - Open file number\n[s] - Change sort (current: last modified)\n[n] - New Directory\n[d] - Delete directory\n[r] - Return to main menu\n[q] - Quit\n\n");
+                self.commands = vec!["s".to_string(), "n".to_string(),  "d".to_string(), "r".to_string(), "q".to_string()];
+            },
+            "LaunchCommands" => {
+                self.comment = String::from("Select Action\n[n] - New Launch Command\n[d] - Delete Launch Command\n[r] - Return to main menu\n[q] - Quit\n\n");
+                self.commands = vec!["n".to_string(), "d".to_string(), "r".to_string(), "q".to_string()];
             },
             &_ => ()
         };
@@ -209,7 +218,7 @@ impl State {
 
                 let launch_command = launch_command.trim_end();
 
-                println!("\n'{}' file will now be opened with '{}' by default, use 'd' from the main menu to change.", extension, launch_command);
+                println!("\n'{}' file will now be opened with '{}' by default, use 'd' from the default opening process menu to change.", extension, launch_command);
                 self.launch_command.insert(String::from(extension), String::from(launch_command));
 
             }
@@ -230,6 +239,7 @@ impl State {
         }
 
         // write changes to file "ff_launchcommands.txt" which allows for cross-instance usage
+        fs::remove_file("ff_launchcommands.txt").unwrap();
         let mut file = OpenOptions::new()
             .write(true)
             .create(true)
@@ -244,8 +254,52 @@ impl State {
         // after waiting, return to main menu
         thread::sleep(time::Duration::from_secs(2));
         std::process::Command::new("clear").status().unwrap();
-        print!("{}", self.print_commands());
-        poll_commands(self);
+        self.directories();
+    }
+
+    fn new_launchcommand(&mut self) {
+        // initialize text input variables
+        let mut new_extension = String::new();
+        let mut launch_command = String::new();
+
+        // preparing IO
+        print!("\nPlease enter a file extension...\n> ");
+        io::stdout().flush().expect("Failed to flush");
+        io::stdin()
+            .read_line(&mut new_extension)
+            .expect("Failed to read line");
+
+        let new_extension = new_extension.trim_end();
+
+        print!("\nWhat command would you like to open '{new_extension}' files with?\n> ");
+        io::stdout().flush().expect("Failed to flush");
+        io::stdin()
+            .read_line(&mut launch_command)
+            .expect("Failed to read line");
+
+        let launch_command = launch_command.trim_end();
+
+        println!("\n'{}' files will now be opened with '{}' by default, use 'd' from the main menu to change.", new_extension, launch_command);
+        self.launch_command.insert(String::from(new_extension), String::from(launch_command));
+
+        // write changes to file "ff_launchcommands.txt" which allows for cross-instance usage
+        fs::remove_file("ff_launchcommands.txt").unwrap();
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open("ff_launchcommands.txt")
+            .expect("Unable to open file");
+
+        for (extension, commands) in &self.launch_command { // same issue
+            let data = format!("{extension} {commands}\n");
+            file.write(data.as_bytes()).expect("Unable to write to launchcommands");
+        }
+
+        // after waiting, return to directory listing
+        thread::sleep(time::Duration::from_secs(2));
+        std::process::Command::new("clear").status().unwrap();
+        self.launch_commands();
+
     }
 
     fn delete_directory(&mut self) {
@@ -268,8 +322,10 @@ impl State {
             commands.push(String::from(word));
         }
 
+        // because of the borrow-checker, use this variable to queue up a directory to be deleted
         let mut tobe_deleted = String::new();
 
+        // for every directory (command), check against the endpoint (value) and remove by directory (key). Once its found, break the loop
         for command in commands.iter() {
             for (key, value) in &self.directories {
                 if value == command {
@@ -284,17 +340,17 @@ impl State {
             self.directories.remove(&tobe_deleted);
         }
 
-        // write changes to file "ff_directories.txt" which allows for cross-instance usage
+        // write changes to file "ff_launchcommands.txt" which allows for cross-instance usage
         fs::remove_file("ff_directories.txt").unwrap();
         let mut file = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .open("ff_directories.txt")
-                .expect("Unable to open file");
+            .write(true)
+            .create(true)
+            .open("ff_directories.txt")
+            .expect("Unable to open file");
 
-        for (directory, endpoint) in &self.directories { // issue: currently rewrites entire storage when saving as a redundancy against overwrites
+        for (directory, endpoint) in &self.directories { // same issue
             let data = format!("{directory} {endpoint}\n");
-            file.write(data.as_bytes()).expect("Unable to write to directories");
+            file.write(data.as_bytes()).expect("Unable to write to directory");
         }
 
         // after waiting, return to directory listing
@@ -303,16 +359,81 @@ impl State {
         self.directories();
     }
 
+    fn delete_launchcommand(&mut self) {
+
+        // initialize text input variables
+        let mut text_entry = String::new();
+        let mut commands: Vec<String> = Vec::new();
+
+        // preparing IO
+        print!("\nSelect launch command to delete...\n");
+        print!("> ");
+        io::stdout().flush().expect("Failed to flush");
+        io::stdin()
+            .read_line(&mut text_entry)
+            .expect("Failed to read line");
+
+        // tokenizing commands
+        for word in text_entry.split_whitespace() {
+            commands.push(String::from(word));
+        }
+
+        // because of the borrow-checker, use this variable to queue up a directory to be deleted
+        let mut tobe_deleted = String::new();
+
+        // for every directory (command), check against the endpoint (value) and remove by directory (key). Once its found, break the loop
+        for command in commands.iter() {
+            for (key, _value) in &self.launch_command {
+                if key  == command {
+                    println!("\nDeleteing '{}' from registry... (fast_files does not truly delete files)", command);
+                    tobe_deleted = key.to_string();
+                    break;
+                }
+            }
+            if tobe_deleted == "" {
+                println!("\nDirectory not found");
+            }
+            self.launch_command.remove(&tobe_deleted);
+        }
+
+        // write changes to file "ff_directories.txt" which allows for cross-instance usage
+        fs::remove_file("ff_launchcommands.txt").unwrap();
+        let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open("ff_launchcommands.txt")
+                .expect("Unable to open file");
+
+        for (extension, commands) in &self.launch_command { // same issue
+            let data = format!("{extension} {commands}\n");
+            file.write(data.as_bytes()).expect("Unable to write to launchcommands");
+        }
+
+        // after waiting, return to directory listing
+        thread::sleep(time::Duration::from_secs(2));
+        std::process::Command::new("clear").status().unwrap();
+        self.launch_commands();
+    }
+
     fn open_directory(&mut self) {}
 
-    fn set_default_opening_process(&mut self) {
-        // reuse code from new_directory, swap out directories for launch_command
-    }
-
     fn refresh_list(&mut self) {
-        // maybe call build() and then reuse code from new_directory()
-    }
+        // clears current directories and launch_command hashmaps
+        self.directories = HashMap::new();
+        self.launch_command = HashMap::new();
 
+        // rebuilds from file
+        // note: the use case of this is if the files are changed while the program is running
+        self.build("ff_directories.txt".to_string(), "ff_launchcommands.txt".to_string());
+
+        // after waiting, return to main menu
+        println!("\nRefreshing directories and launch commands from file...");
+        thread::sleep(time::Duration::from_secs(2));
+        std::process::Command::new("clear").status().unwrap();
+        print!("{}", self.print_commands());
+        poll_commands(self);
+
+    }
 
     // State change functions
     //
@@ -336,6 +457,24 @@ impl State {
         let mut count: i32 = 1;
         for (_filepath, endpoint) in &self.directories {
             println!("{}. {}", count, endpoint);
+            count += 1;
+        }
+
+        print!("\n{}", self.print_commands());
+        poll_commands(self);
+    }
+
+    // Changes State to directories
+    pub fn launch_commands(&mut self) {
+        self.update("LaunchCommands");
+        std::process::Command::new("clear").status().unwrap();
+
+        // prints directories from state.directories hashmap
+        println!("Listing Saved Opening Actions...");
+
+        let mut count: i32 = 1;
+        for (extension, launchcommand) in &self.launch_command{
+            println!("{}. {} -> {}", count, extension, launchcommand);
             count += 1;
         }
 
