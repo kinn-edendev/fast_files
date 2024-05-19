@@ -4,6 +4,7 @@ use regex::Regex;
 use std::{thread, time};
 use std::fs::{self, OpenOptions, File};
 use std::path::Path;
+use std::process::Command;
 
 pub struct State {
     menu: String,
@@ -112,6 +113,8 @@ impl State {
             }
         }
 
+        let _ = File::options().write(true).create(true).open("ff_directories.txt");
+        let _ = File::options().write(true).create(true).open("ff_launchcommands.txt");
     }
 
     // Update state with corresponding options: main_menu(), directories().
@@ -130,8 +133,8 @@ impl State {
                 self.commands = Vec::from(["l".to_string(), "d".to_string(), "r".to_string(), "q".to_string()]);
             },
             "Directories" => {
-                self.comment = String::from("Select Action\n[#] - Open file number\n[s] - Change sort (current: last modified)\n[n] - New Directory\n[d] - Delete directory\n[r] - Return to main menu\n[q] - Quit\n\n");
-                self.commands = vec!["s".to_string(), "n".to_string(),  "d".to_string(), "r".to_string(), "q".to_string()];
+                self.comment = String::from("Select Action\n[o] - Open file endpoint/number\n[s] - Change sort (current: last modified)\n[n] - New Directory\n[d] - Delete directory\n[r] - Return to main menu\n[q] - Quit\n\n");
+                self.commands = vec!["o".to_string(), "s".to_string(), "n".to_string(),  "d".to_string(), "r".to_string(), "q".to_string()];
             },
             "LaunchCommands" => {
                 self.comment = String::from("Select Action\n[n] - New Launch Command\n[d] - Delete Launch Command\n[r] - Return to main menu\n[q] - Quit\n\n");
@@ -415,7 +418,55 @@ impl State {
         self.launch_commands();
     }
 
-    fn open_directory(&mut self) {}
+    fn open_directory(&mut self) {
+        // initialize text input variables
+        let mut ex_endpoint = String::new();
+
+        // initialize execution fields
+        let mut ex_command = String::new(); 
+        let mut ex_filepath = String::new();
+
+        // preparing IO
+        print!("\nPlease enter a file or file number to open...\n> ");
+        io::stdout().flush().expect("Failed to flush");
+        io::stdin()
+            .read_line(&mut ex_endpoint)
+            .expect("Failed to read line");
+
+        let ex_endpoint = ex_endpoint.trim_end();
+
+        // finding extension from ex_endpoint
+        let re_ext = Regex::new(r"(?<ext>\.[[:word:]]+)").unwrap();
+
+        let cap = re_ext.captures(ex_endpoint).and_then(|cap| {
+            cap.name("ext").map(|ext| ext.as_str())
+        });
+        let ex_extension= match cap {
+            Some(ex) => ex,
+            None => "",
+        };
+
+        // finding launch command from extension
+        for (extension, launch_command) in &self.launch_command {
+            if extension == ex_extension {
+                ex_command = launch_command.to_string();
+            }
+        }
+
+        // finding filepath from endpoint
+        for (filepath, endpoint) in &self.directories {
+            if endpoint == ex_endpoint {
+                ex_filepath = filepath.to_string();
+            }
+        }
+
+        // exiting message
+        println!("\nOpening {ex_endpoint} with {ex_command}...");
+        thread::sleep(time::Duration::from_secs(2));
+
+        // execute file opening
+        Command::new(ex_command).arg(ex_filepath).status().expect("Couldn't open file");
+    }
 
     fn refresh_list(&mut self) {
         // clears current directories and launch_command hashmaps

@@ -159,6 +159,35 @@ Select Action
 
 Refreshing directories and launch commands from file\.\.\.
 
+Fast Files \- File directory storage UI for fast access and sorting
+
+Select Action
+\[l\] \- List saved directories
+\[d\] \- List default opening process
+\[r\] \- Refresh saved directories
+\[q\] \- Quit
+
+\> l
+
+Listing Saved Directories\.\.\.
+1. hashcat\.potfile
+2. movies\.txt
+
+Select Action
+\[o\] \- Open file endpoint/number
+\[s\] \- Change sort (current: last modified)
+\[n\] \- New Directory
+\[d\] \- Delete directory
+\[r\] \- Return to main menu
+\[q\] \- Quit
+
+\> o
+
+Please enter a file or file number to open\.\.\.
+\> movies\.txt
+
+Opening movies\.txt with vim\.\.\.
+
 Select Action
 \[l\] \- List saved directories
 \[d\] \- List default opening process
