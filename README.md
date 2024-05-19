@@ -10,7 +10,6 @@ Features include:
 
 ### Current To Do
 
-- Opening files from directory list
 - Sorting by filetype/file size/alphabetical (all ascending/descending)
 - Adding/removing entries from favorites tab and the favorites tab in general
 - Improved error handling and unit tests
@@ -21,6 +20,7 @@ Features include:
 - Directories listing (adding/removing)
 - Default opening process listing (adding/removing)
 - Saving to file for later use (ff\_directories\.txt and ff\_launchcommands\.txt)
+- Opening files from directory list
 
 ### Credits
 
