@@ -170,7 +170,7 @@ impl State {
         // declaring regex for use in the for loop, documentation said its 'expensive' to declare
         // so its only done once.       
         let re_endpoint = Regex::new(r"(?<endpoint>[[:word:]]+\.[[:word:]]+)").unwrap();
-        let re_ext = Regex::new(r"(?<ext>\.[[:word:]]+)").unwrap();
+        let re_ext = Regex::new(r"(?<ext>\.[[:word:]]+\w$)").unwrap();
         
         // this loop captures the endpoint and extension for every inputted directory, then adds
         // them to their respective hashmaps in state.directories and state.launch_command
