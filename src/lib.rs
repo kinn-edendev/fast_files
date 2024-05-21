@@ -6,6 +6,10 @@ use std::fs::{self, OpenOptions, File};
 use std::path::Path;
 use std::process::Command;
 
+/// This program uses state-based design. On startup, a blank state is declared and is manipulated
+/// by the functions of the library to, for example, change the menu status, change possible input
+/// commands, and make changes to local storage hashmaps.
+
 pub struct State {
     menu: String,
     commands: Vec<String>,
