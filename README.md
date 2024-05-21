@@ -27,4 +27,4 @@ Features include:
 Produced and maintained by:
 - kinn
 
-#### Please send me an email at kinn-edendev@gmail.com if you have questions or comments regarding this project.
+#### Please send me an email at kinn.edendev@gmail.com if you have questions or comments regarding this project.
